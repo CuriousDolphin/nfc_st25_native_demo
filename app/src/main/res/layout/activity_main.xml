@@ -7,12 +7,69 @@
     tools:context=".MainActivity">
 
     <TextView
+        android:id="@+id/textView3"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Hello World!"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
+        android:layout_marginStart="48dp"
+        android:layout_marginTop="41dp"
+        android:layout_marginBottom="36dp"
+        android:text="nfc info"
+        app:layout_constraintBottom_toTopOf="@+id/TagInfo"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.0" />
+
+    <TextView
+        android:id="@+id/TagInfo"
+        android:layout_width="0dp"
+        android:layout_height="142dp"
+        android:layout_marginStart="44dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="44dp"
+        android:layout_marginBottom="16dp"
+        android:background="#6EA8A8A8"
+        android:isScrollContainer="true"
+        app:layout_constraintBottom_toTopOf="@+id/StInfo"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.444"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/MailBox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="160dp"
+        android:layout_marginBottom="72dp"
+        android:clickable="false"
+        android:text="Read"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <TextView
+        android:id="@+id/StInfo"
+        android:layout_width="0dp"
+        android:layout_height="224dp"
+        android:layout_marginStart="44dp"
+        android:layout_marginEnd="44dp"
+        android:background="#2F575757"
+        android:isScrollContainer="true"
+        app:layout_constraintBottom_toTopOf="@+id/MailBox"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/TagInfo" />
+
+    <TextView
+        android:id="@+id/textView4"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="44dp"
+        android:layout_marginTop="53dp"
+        android:layout_marginBottom="24dp"
+        android:text="ST INFO"
+        app:layout_constraintBottom_toTopOf="@+id/StInfo"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/TagInfo" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -12,6 +12,7 @@ import android.nfc.NfcAdapter;
 import android.nfc.Tag;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -37,6 +38,7 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
         READ_MEMORY_SIZE,
         READ_FAST_MEMORY,
         WRITE_MAIL_BOX,
+        GET_INFO,
     };
 
     enum ActionStatus {
@@ -117,7 +119,11 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
 
     @Override
     public void onTagDiscoveryCompleted(NFCTag nfcTag, TagHelper.ProductID productId, STException error) {
-
+        TextView tagInfoText = (TextView) findViewById(R.id.TagInfo);
+        tagInfoText.setText("");
+        TextView stInfoText = (TextView) findViewById(R.id.StInfo);
+        stInfoText.setMovementMethod(new ScrollingMovementMethod());
+        stInfoText.setText("");
         if (error != null) {
             Toast.makeText(getApplication(), "Error while reading the tag: " + error.toString(), Toast.LENGTH_LONG).show();
             return;
@@ -126,10 +132,22 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
         if (nfcTag != null && productId.name().contains("PRODUCT_ST_ST25") ) {
             mNfcTag = (ST25DVTag) nfcTag;
 
+            String name = nfcTag.getName();
+            String description = nfcTag.getDescription();
+            String[] techList = nfcTag.getTechList();
+
+            String txt = "Name: "+name+"\nDescription: "+description+"\n Tech list: \n";
+            for(int i=0;i<techList.length;i++){
+                txt+=techList[i]+"\n";
+            }
+
+
+            tagInfoText.setText(txt);
+
             try {
 
                 String tagName = nfcTag.getName();
-                Toast.makeText(this,"TAG AQUIRED "+productId.name().toString(),Toast.LENGTH_LONG).show();
+                //Toast.makeText(this,"TAG AQUIRED "+productId.name().toString(),Toast.LENGTH_LONG).show();
 
                 //TextView tagNameTextView = (TextView) findViewById(R.id.);
                 //tagNameTextView.setText(tagName);
@@ -138,7 +156,7 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
               //  TextView uidTextView = (TextView) findViewById(R.id.uidTextView);
                // uidTextView.setText(uidString);
 
-                executeAsynchronousAction(Action.READ_MEMORY_SIZE);
+                executeAsynchronousAction(Action.GET_INFO);
 
             } catch (STException e) {
                 e.printStackTrace();
@@ -165,6 +183,10 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
         Action mAction;
         int memSizeInBytes;
         List<STRegister> list;
+        TextView stInfoText = (TextView) findViewById(R.id.StInfo);
+
+
+        String txt="";
 
         public myAsyncTask(Action action) {
             mAction = action;
@@ -176,6 +198,32 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
 
             try {
                 switch (mAction) {
+                    case GET_INFO:
+                        memSizeInBytes=mNfcTag.getMemSizeInBytes();
+                        List<STRegister> dynRegister = mNfcTag.getDynamicRegisterList();
+                        List<STRegister> register = mNfcTag.getRegisterList();
+                        boolean mailBoxEnabled = mNfcTag.isMailboxEnabled(true);
+                        int nAreas=mNfcTag.getNumberOfAreas();
+                        txt="MEMORY SIZE (bytes): "+memSizeInBytes + "\nmailBoxEnabled: "+mailBoxEnabled+"\nArea numbers: "+nAreas;
+
+                        if(!mailBoxEnabled){
+                            mNfcTag.enableMailbox();
+                            mNfcTag.refreshMailboxStatus();
+                            boolean mailBoxEnabled2 = mNfcTag.isMailboxEnabled(true);
+                            txt+="\nTRYING TO ACTIVATE MAILBOX "+mailBoxEnabled2;
+                        }
+                        txt+="\n-------------------------";
+                        txt+= "\nRegister:";
+                        for(STRegister reg:register){
+                            txt+="\nName: "+reg.getRegisterName()+"\nAddress: "+Integer.toHexString(reg.getRegisterAddress())+"\nDescription: "+reg.getRegisterContentDescription()+"\nContent: "+Integer.toHexString(reg.getRegisterValue())+"\n";
+                        }
+                        txt+="-------------------------";
+                        txt+= "\nDynamic register:";
+                        for(STRegister reg:dynRegister){
+                            txt+="\nName: "+reg.getRegisterName()+"\nAddress: "+Integer.toHexString(reg.getRegisterAddress())+"\nDescription: "+reg.getRegisterContentDescription()+"\nContent: "+Integer.toHexString(reg.getRegisterValue())+"\n";
+                        }
+                        result = ActionStatus.ACTION_SUCCESSFUL;
+                        break;
                     case WRITE_NDEF_MESSAGE:
                         // Create a NDEFMsg
                         NDEFMsg ndefMsg = new NDEFMsg();
@@ -199,9 +247,9 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
                         result = ActionStatus.ACTION_SUCCESSFUL;
                         break;
                     case WRITE_MAIL_BOX:
-                        mNfcTag.writeMailboxMessage();
-
-                        break
+                      //  mNfcTag.writeMailboxMessage();
+                        result = ActionStatus.ACTION_SUCCESSFUL;
+                        break;
                     case READ_FAST_MEMORY:
 
                         // If we get to this point, it means that no STException occured so the action was successful
@@ -236,12 +284,15 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
             switch(actionStatus) {
                 case ACTION_SUCCESSFUL:
                     switch (mAction) {
+                        case GET_INFO:
+                            stInfoText.setText(txt);
+
+                            break;
                         case WRITE_NDEF_MESSAGE:
                             Toast.makeText(MainActivity.this, "Write successful", Toast.LENGTH_LONG).show();
                             break;
                         case READ_MEMORY_SIZE:
                             Toast.makeText(MainActivity.this, "READ successful "+memSizeInBytes+" BYTES", Toast.LENGTH_LONG).show();
-                            Toast.makeText(MainActivity.this, "REGISTER LIST "+list.toString(), Toast.LENGTH_LONG).show();
 
                             //mTagMemSizeTextView.setText(String.valueOf(memSizeInBytes));
                             break;
