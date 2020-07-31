@@ -18,20 +18,25 @@ import android.widget.Toast;
 
 import com.st.st25sdk.NFCTag;
 import com.st.st25sdk.STException;
+import com.st.st25sdk.STRegister;
 import com.st.st25sdk.TagHelper;
 import com.st.st25sdk.ndef.NDEFMsg;
 import com.st.st25sdk.ndef.UriRecord;
+import com.st.st25sdk.type5.st25dv.ST25DVTag;
+
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements TagDiscovery.onTagDiscoveryCompletedListener {
     private NfcAdapter mNfcAdapter;
 
     // Last tag taped
-    private NFCTag mNfcTag;
+    private ST25DVTag mNfcTag;
 
     enum Action {
         WRITE_NDEF_MESSAGE,
         READ_MEMORY_SIZE,
-        READ_FAST_MEMORY
+        READ_FAST_MEMORY,
+        WRITE_MAIL_BOX,
     };
 
     enum ActionStatus {
@@ -118,13 +123,13 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
             return;
         }
 
-        if (nfcTag != null) {
-            mNfcTag = nfcTag;
+        if (nfcTag != null && productId.name().contains("PRODUCT_ST_ST25") ) {
+            mNfcTag = (ST25DVTag) nfcTag;
 
             try {
 
                 String tagName = nfcTag.getName();
-                Toast.makeText(this,"TAG AQUIRED "+nfcTag.toString(),Toast.LENGTH_LONG).show();
+                Toast.makeText(this,"TAG AQUIRED "+productId.name().toString(),Toast.LENGTH_LONG).show();
 
                 //TextView tagNameTextView = (TextView) findViewById(R.id.);
                 //tagNameTextView.setText(tagName);
@@ -141,7 +146,7 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
             }
 
         } else {
-            Toast.makeText(this, "Tag discovery failed!", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Tag discovery failed! or unsupported device", Toast.LENGTH_LONG).show();
         }
     }
 
@@ -159,6 +164,7 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
     class myAsyncTask extends AsyncTask<Void, Void, ActionStatus> {
         Action mAction;
         int memSizeInBytes;
+        List<STRegister> list;
 
         public myAsyncTask(Action action) {
             mAction = action;
@@ -188,14 +194,20 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
                         break;
                     case READ_MEMORY_SIZE:
                         memSizeInBytes = mNfcTag.getMemSizeInBytes();
+                        ;
                         // If we get to this point, it means that no STException occured so the action was successful
                         result = ActionStatus.ACTION_SUCCESSFUL;
                         break;
+                    case WRITE_MAIL_BOX:
+                        mNfcTag.writeMailboxMessage();
+
+                        break
                     case READ_FAST_MEMORY:
 
                         // If we get to this point, it means that no STException occured so the action was successful
                         result = ActionStatus.ACTION_SUCCESSFUL;
                         break;
+
 
                     default:
                         result = ActionStatus.ACTION_FAILED;
@@ -229,6 +241,7 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
                             break;
                         case READ_MEMORY_SIZE:
                             Toast.makeText(MainActivity.this, "READ successful "+memSizeInBytes+" BYTES", Toast.LENGTH_LONG).show();
+                            Toast.makeText(MainActivity.this, "REGISTER LIST "+list.toString(), Toast.LENGTH_LONG).show();
 
                             //mTagMemSizeTextView.setText(String.valueOf(memSizeInBytes));
                             break;
