@@ -3,7 +3,6 @@ package com.example.st_25_sdk_sample;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
-import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -14,6 +13,8 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -22,7 +23,6 @@ import com.st.st25sdk.STException;
 import com.st.st25sdk.STRegister;
 import com.st.st25sdk.TagHelper;
 import com.st.st25sdk.ndef.NDEFMsg;
-import com.st.st25sdk.ndef.UriRecord;
 import com.st.st25sdk.type5.st25dv.ST25DVTag;
 
 import java.util.List;
@@ -33,12 +33,21 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
     // Last tag taped
     private ST25DVTag mNfcTag;
 
+    private boolean mMailboxEnabled;
+    private boolean mHostPutMsg;
+    private boolean mRfPutMsg;
+    private boolean mHostMissMsg;
+    private boolean mRfMissMsg;
+
     enum Action {
         WRITE_NDEF_MESSAGE,
         READ_MEMORY_SIZE,
         READ_FAST_MEMORY,
         WRITE_MAIL_BOX,
         GET_INFO,
+        READ_MAIL_BOX,
+        RESET_MAIL_BOX,
+
     };
 
     enum ActionStatus {
@@ -53,7 +62,58 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+
+
+
         mNfcAdapter = NfcAdapter.getDefaultAdapter(this);
+
+        Button writeMailBoxMsgButton = (Button) findViewById(R.id.writeMailBoxBtn);
+
+        Button readMailBoxMsgButton = (Button) findViewById(R.id.readMailBoxBtn);
+
+        Button resetMailBoxMsgButton = (Button) findViewById(R.id.resetMailBoxBtn);
+
+        TextView stInfoText = (TextView) findViewById(R.id.StInfo);
+        stInfoText.setMovementMethod(new ScrollingMovementMethod());
+
+        writeMailBoxMsgButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (mNfcTag != null) {
+                    TextView mailBoxText = (TextView) findViewById(R.id.MailboxInfo);
+                    // All the actions doing a transceive() to communicate with the tag should be done
+                    // in an Async Task to avoid disturbance of Android UI Thread
+                    mailBoxText.setText("");
+                    executeAsynchronousAction(Action.WRITE_MAIL_BOX);
+                }
+            }
+        });
+
+        readMailBoxMsgButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (mNfcTag != null) {
+                    TextView mailBoxText = (TextView) findViewById(R.id.MailboxInfo);
+                    // All the actions doing a transceive() to communicate with the tag should be done
+                    // in an Async Task to avoid disturbance of Android UI Thread
+                    mailBoxText.setText("");
+                    executeAsynchronousAction(Action.READ_MAIL_BOX);
+                }
+            }
+        });
+
+        resetMailBoxMsgButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (mNfcTag != null) {
+                    TextView mailBoxText = (TextView) findViewById(R.id.MailboxInfo);
+                    // All the actions doing a transceive() to communicate with the tag should be done
+                    // in an Async Task to avoid disturbance of Android UI Thread
+                    mailBoxText.setText("");
+                    executeAsynchronousAction(Action.RESET_MAIL_BOX);
+                }
+            }
+        });
     }
 
     @Override
@@ -120,10 +180,11 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
     @Override
     public void onTagDiscoveryCompleted(NFCTag nfcTag, TagHelper.ProductID productId, STException error) {
         TextView tagInfoText = (TextView) findViewById(R.id.TagInfo);
+        TextView mailBoxText = (TextView) findViewById(R.id.MailboxInfo);
         tagInfoText.setText("");
         TextView stInfoText = (TextView) findViewById(R.id.StInfo);
         stInfoText.setMovementMethod(new ScrollingMovementMethod());
-        stInfoText.setText("");
+        mailBoxText.setText("");
         if (error != null) {
             Toast.makeText(getApplication(), "Error while reading the tag: " + error.toString(), Toast.LENGTH_LONG).show();
             return;
@@ -182,14 +243,64 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
     class myAsyncTask extends AsyncTask<Void, Void, ActionStatus> {
         Action mAction;
         int memSizeInBytes;
+
         List<STRegister> list;
         TextView stInfoText = (TextView) findViewById(R.id.StInfo);
+        TextView mailBoxText = (TextView) findViewById(R.id.MailboxInfo);
 
-
-        String txt="";
+        String msg="";
+        String infoTxt="";
+        String mailBoxTxt="";
 
         public myAsyncTask(Action action) {
             mAction = action;
+        }
+
+        void getInfo() throws STException {
+
+                infoTxt="";
+                mailBoxTxt="";
+
+                mMailboxEnabled = false;
+                mHostPutMsg = false;
+                mHostMissMsg = false;
+                mRfPutMsg = false;
+                mRfMissMsg = false;
+                memSizeInBytes = mNfcTag.getMemSizeInBytes();
+                List<STRegister> dynRegister = mNfcTag.getDynamicRegisterList();
+                List<STRegister> register = mNfcTag.getRegisterList();
+                int nAreas = mNfcTag.getNumberOfAreas();
+                infoTxt = "MEMORY SIZE (bytes): " + memSizeInBytes + "\nArea numbers: " + nAreas;
+
+
+                infoTxt += "\n-------------------------";
+                infoTxt += "\nRegister:";
+                for (STRegister reg : register) {
+                    infoTxt += "\nName: " + reg.getRegisterName() + "\nAddress: " + Integer.toHexString(reg.getRegisterAddress()) + "\nDescription: " + reg.getRegisterContentDescription() + "\nContent: " + Integer.toHexString(reg.getRegisterValue()) + "\n";
+                }
+                infoTxt += "-------------------------";
+                infoTxt += "\nDynamic register:";
+                for (STRegister reg : dynRegister) {
+                    infoTxt += "\nName: " + reg.getRegisterName() + "\nAddress: " + Integer.toHexString(reg.getRegisterAddress()) + "\nDescription: " + reg.getRegisterContentDescription() + "\nContent: " + Integer.toHexString(reg.getRegisterValue()) + "\n";
+                }
+
+                mMailboxEnabled = mNfcTag.isMailboxEnabled(false);
+                mHostPutMsg = mNfcTag.hasHostPutMsg(false);
+                mHostMissMsg = mNfcTag.hasHostMissMsg(false);
+                mRfPutMsg = mNfcTag.hasRFPutMsg(false);
+                mRfMissMsg = mNfcTag.hasRFMissMsg(false);
+                mailBoxTxt += "Mailbox enabled: " + mMailboxEnabled;
+                if (!mMailboxEnabled) {
+                    mNfcTag.enableMailbox();
+                    mNfcTag.refreshMailboxStatus();
+                    boolean mailBoxEnabled2 = mNfcTag.isMailboxEnabled(true);
+                    mailBoxTxt += "\nTRYING TO ACTIVATE MAILBOX:" + mailBoxEnabled2;
+                }
+
+                mailBoxTxt += "\n(HOST) msg put via serial interface : " + mHostPutMsg;
+                mailBoxTxt += "\n(HOST) msg missed by interface: " + mHostMissMsg;
+                mailBoxTxt += "\n(RF) msg put via rf: " + mRfPutMsg;
+                mailBoxTxt += "\n(RF) msg miss via rf: " + mRfMissMsg;
         }
 
         @Override
@@ -199,31 +310,13 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
             try {
                 switch (mAction) {
                     case GET_INFO:
-                        memSizeInBytes=mNfcTag.getMemSizeInBytes();
-                        List<STRegister> dynRegister = mNfcTag.getDynamicRegisterList();
-                        List<STRegister> register = mNfcTag.getRegisterList();
-                        boolean mailBoxEnabled = mNfcTag.isMailboxEnabled(true);
-                        int nAreas=mNfcTag.getNumberOfAreas();
-                        txt="MEMORY SIZE (bytes): "+memSizeInBytes + "\nmailBoxEnabled: "+mailBoxEnabled+"\nArea numbers: "+nAreas;
 
-                        if(!mailBoxEnabled){
-                            mNfcTag.enableMailbox();
-                            mNfcTag.refreshMailboxStatus();
-                            boolean mailBoxEnabled2 = mNfcTag.isMailboxEnabled(true);
-                            txt+="\nTRYING TO ACTIVATE MAILBOX "+mailBoxEnabled2;
-                        }
-                        txt+="\n-------------------------";
-                        txt+= "\nRegister:";
-                        for(STRegister reg:register){
-                            txt+="\nName: "+reg.getRegisterName()+"\nAddress: "+Integer.toHexString(reg.getRegisterAddress())+"\nDescription: "+reg.getRegisterContentDescription()+"\nContent: "+Integer.toHexString(reg.getRegisterValue())+"\n";
-                        }
-                        txt+="-------------------------";
-                        txt+= "\nDynamic register:";
-                        for(STRegister reg:dynRegister){
-                            txt+="\nName: "+reg.getRegisterName()+"\nAddress: "+Integer.toHexString(reg.getRegisterAddress())+"\nDescription: "+reg.getRegisterContentDescription()+"\nContent: "+Integer.toHexString(reg.getRegisterValue())+"\n";
-                        }
+                        getInfo();
+
                         result = ActionStatus.ACTION_SUCCESSFUL;
                         break;
+
+
                     case WRITE_NDEF_MESSAGE:
                         // Create a NDEFMsg
                         NDEFMsg ndefMsg = new NDEFMsg();
@@ -248,6 +341,22 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
                         break;
                     case WRITE_MAIL_BOX:
                       //  mNfcTag.writeMailboxMessage();
+                        byte[] myvar = "HELLO NFC!".getBytes();
+
+                        mNfcTag.writeMailboxMessage(myvar);
+                        getInfo();
+
+                        result = ActionStatus.ACTION_SUCCESSFUL;
+                        break;
+                    case READ_MAIL_BOX:
+                        byte[] ris = mNfcTag.readMailboxMessage(0,10);
+
+                        msg = new String(ris);
+                        result = ActionStatus.ACTION_SUCCESSFUL;
+                        break;
+                    case RESET_MAIL_BOX:
+                        mNfcTag.resetMailbox();
+                        getInfo();
                         result = ActionStatus.ACTION_SUCCESSFUL;
                         break;
                     case READ_FAST_MEMORY:
@@ -284,10 +393,23 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
             switch(actionStatus) {
                 case ACTION_SUCCESSFUL:
                     switch (mAction) {
-                        case GET_INFO:
-                            stInfoText.setText(txt);
-
+                        case RESET_MAIL_BOX:
+                            stInfoText.setText(infoTxt);
+                            mailBoxText.setText(mailBoxTxt);
+                            Toast.makeText(MainActivity.this, "RESET OK", Toast.LENGTH_LONG).show();
                             break;
+                        case READ_MAIL_BOX:
+                            stInfoText.setText(infoTxt);
+                            mailBoxText.setText(mailBoxTxt);
+                            Toast.makeText(MainActivity.this, "READ: "+msg, Toast.LENGTH_LONG).show();
+
+                        case WRITE_MAIL_BOX:
+                            Toast.makeText(MainActivity.this, "SEND successful", Toast.LENGTH_LONG).show();
+                        case GET_INFO:
+                            stInfoText.setText(infoTxt);
+                            mailBoxText.setText(mailBoxTxt);
+                            break;
+
                         case WRITE_NDEF_MESSAGE:
                             Toast.makeText(MainActivity.this, "Write successful", Toast.LENGTH_LONG).show();
                             break;
