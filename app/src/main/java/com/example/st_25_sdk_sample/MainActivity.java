@@ -15,6 +15,7 @@ import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -52,6 +53,7 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
 
     enum ActionStatus {
         ACTION_SUCCESSFUL,
+        ACTION_ABORTED,
         ACTION_FAILED,
         TAG_NOT_IN_THE_FIELD
     };
@@ -168,7 +170,7 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
             // the handle of the NFC Tag
             Tag nfcTag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
             if (nfcTag != null) {
-                Toast.makeText(this, "Starting Tag discovery", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, " Tag found ", Toast.LENGTH_SHORT).show();
 
                 // This action will be done in an Asynchronous task.
                 // onTagDiscoveryCompleted() of current activity will be called when the discovery is completed.
@@ -247,20 +249,21 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
         List<STRegister> list;
         TextView stInfoText = (TextView) findViewById(R.id.StInfo);
         TextView mailBoxText = (TextView) findViewById(R.id.MailboxInfo);
-
-        String msg="";
+        EditText msgForm = (EditText) findViewById(R.id.msgForm);
+        String msg=""; // readed msg from mailbox
         String infoTxt="";
         String mailBoxTxt="";
+        String msgToSend="";
+        String resultStatus ="";
 
         public myAsyncTask(Action action) {
             mAction = action;
+            msgToSend = msgForm.getText().toString();
         }
 
         void getInfo() throws STException {
-
                 infoTxt="";
                 mailBoxTxt="";
-
                 mMailboxEnabled = false;
                 mHostPutMsg = false;
                 mHostMissMsg = false;
@@ -284,11 +287,11 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
                     infoTxt += "\nName: " + reg.getRegisterName() + "\nAddress: " + Integer.toHexString(reg.getRegisterAddress()) + "\nDescription: " + reg.getRegisterContentDescription() + "\nContent: " + Integer.toHexString(reg.getRegisterValue()) + "\n";
                 }
 
-                mMailboxEnabled = mNfcTag.isMailboxEnabled(false);
-                mHostPutMsg = mNfcTag.hasHostPutMsg(false);
-                mHostMissMsg = mNfcTag.hasHostMissMsg(false);
-                mRfPutMsg = mNfcTag.hasRFPutMsg(false);
-                mRfMissMsg = mNfcTag.hasRFMissMsg(false);
+                mMailboxEnabled = mNfcTag.isMailboxEnabled(true);
+                mHostPutMsg = mNfcTag.hasHostPutMsg(true);
+                mHostMissMsg = mNfcTag.hasHostMissMsg(true);
+                mRfPutMsg = mNfcTag.hasRFPutMsg(true);
+                mRfMissMsg = mNfcTag.hasRFMissMsg(true);
                 mailBoxTxt += "Mailbox enabled: " + mMailboxEnabled;
                 if (!mMailboxEnabled) {
                     mNfcTag.enableMailbox();
@@ -307,16 +310,14 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
         protected ActionStatus doInBackground(Void... param) {
             ActionStatus result;
 
+            boolean isFull;
             try {
+                resultStatus ="";
                 switch (mAction) {
                     case GET_INFO:
-
                         getInfo();
-
                         result = ActionStatus.ACTION_SUCCESSFUL;
                         break;
-
-
                     case WRITE_NDEF_MESSAGE:
                         // Create a NDEFMsg
                         NDEFMsg ndefMsg = new NDEFMsg();
@@ -340,19 +341,41 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
                         result = ActionStatus.ACTION_SUCCESSFUL;
                         break;
                     case WRITE_MAIL_BOX:
-                      //  mNfcTag.writeMailboxMessage();
-                        byte[] myvar = "HELLO NFC!".getBytes();
+                        isFull=mNfcTag.hasRFPutMsg(true) || mNfcTag.hasHostPutMsg(true);
+                        Log.d("nfc", "SENDING, MAILBOX is full?" + isFull);
+                        if(isFull){
+                            Log.d("nfc", "RESET MAILBOX" );
+                            mNfcTag.resetMailbox();
+                        }
+                        if(msgToSend.length()>0) {
+                            byte[] myvar = msgToSend.getBytes();
+                            Log.d("nfc", "SENDING to MAILBOX: " + myvar);
+                            mNfcTag.writeMailboxMessage(myvar);
+                            result = ActionStatus.ACTION_SUCCESSFUL;
+                        }else{
+                            result = ActionStatus.ACTION_FAILED;
+                            resultStatus="EMPTY DATA, NOTHING TO INSERT";
+                        }
 
-                        mNfcTag.writeMailboxMessage(myvar);
                         getInfo();
 
-                        result = ActionStatus.ACTION_SUCCESSFUL;
+
                         break;
                     case READ_MAIL_BOX:
-                        byte[] ris = mNfcTag.readMailboxMessage(0,10);
+                        isFull=mNfcTag.hasRFPutMsg(true) || mNfcTag.hasHostPutMsg(true);
+                        if(isFull){
+                            int size = mNfcTag.readMailboxMessageLength();
+                            Log.d("nfc", "READ MSG LENGTH " + size);
+                            byte[] ris = mNfcTag.readMailboxMessage(0,size);
+                            msg = new String(ris);
+                            result = ActionStatus.ACTION_SUCCESSFUL;
+                        }else{
+                            result = ActionStatus.ACTION_FAILED;
+                            resultStatus="MAILBOX EMPTY";
+                        }
+                        getInfo();
 
-                        msg = new String(ris);
-                        result = ActionStatus.ACTION_SUCCESSFUL;
+
                         break;
                     case RESET_MAIL_BOX:
                         mNfcTag.resetMailbox();
@@ -401,10 +424,10 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
                         case READ_MAIL_BOX:
                             stInfoText.setText(infoTxt);
                             mailBoxText.setText(mailBoxTxt);
-                            Toast.makeText(MainActivity.this, "READ: "+msg, Toast.LENGTH_LONG).show();
-
+                            Toast.makeText(MainActivity.this, "READ FROM MAILBOX: "+msg, Toast.LENGTH_LONG).show();
+                            break;
                         case WRITE_MAIL_BOX:
-                            Toast.makeText(MainActivity.this, "SEND successful", Toast.LENGTH_LONG).show();
+                            Toast.makeText(MainActivity.this, "SEND '"+msgToSend+"' SUCCESS", Toast.LENGTH_LONG).show();
                         case GET_INFO:
                             stInfoText.setText(infoTxt);
                             mailBoxText.setText(mailBoxTxt);
@@ -422,9 +445,13 @@ public class MainActivity extends AppCompatActivity implements TagDiscovery.onTa
                     break;
 
                 case ACTION_FAILED:
-                    Toast.makeText(MainActivity.this, "Action failed!", Toast.LENGTH_LONG).show();
-                    break;
+                    if(mAction.equals(Action.WRITE_MAIL_BOX) || mAction.equals(Action.READ_MAIL_BOX)){
+                        stInfoText.setText(infoTxt);
+                        mailBoxText.setText(mailBoxTxt);
+                    }
+                    Toast.makeText(MainActivity.this, "Action failed! -> "+resultStatus, Toast.LENGTH_LONG).show();
 
+                    break;
                 case TAG_NOT_IN_THE_FIELD:
                     Toast.makeText(MainActivity.this, "Tag not in the field!", Toast.LENGTH_LONG).show();
                     break;

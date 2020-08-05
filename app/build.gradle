@@ -34,4 +34,5 @@ dependencies {
     implementation project(':st25_android_reader_interface')
     // Needed by ST25 SDK
     implementation 'org.apache.commons:commons-lang3:3.5'
+    implementation 'com.google.android.material:material:1.0.0'
 }
